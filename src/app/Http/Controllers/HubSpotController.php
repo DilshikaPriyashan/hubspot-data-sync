@@ -37,14 +37,11 @@ class HubSpotController extends Controller
                     'company' => $data['company'] ?? '',
                 ]
             ];
-
-            // Send batch if we reach 100
             if (count($contacts) === 100) {
                 $this->sendBatchToHubspot($contacts);
-                $contacts = []; // clear the array
+                $contacts = [];
             }
         }
-
         fclose($file);
 
         if (!empty($contacts)) {
@@ -63,7 +60,6 @@ class HubSpotController extends Controller
         ]);
 
         if (!$response->successful()) {
-            // You can log or throw an error here if needed
             Log::error('HubSpot batch upload failed', [
                 'response' => $response->body(),
             ]);
