@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -39,6 +40,7 @@ class HubSpotController extends Controller
             ];
             if (count($contacts) === 100) {
                 $this->sendBatchToHubspot($contacts);
+                $this->saveBatchToLocalDB($contacts);
                 $contacts = [];
             }
         }
@@ -46,6 +48,8 @@ class HubSpotController extends Controller
 
         if (!empty($contacts)) {
             $this->sendBatchToHubspot($contacts);
+            $this->saveBatchToLocalDB($contacts);
+
         }
 
         return back()->with('success', 'CSV uploaded and contacts added to HubSpot.');
@@ -64,5 +68,22 @@ class HubSpotController extends Controller
                 'response' => $response->body(),
             ]);
         }
+    }
+
+    private function saveBatchToLocalDB(array $contacts){
+
+        foreach ($contacts as $contactData) {
+            $props = $contactData['properties'];
+
+            Contact::create([
+                'firstname' => $props['firstname'],
+                'lastname' => $props['lastname'],
+                'email' => $props['email'],
+                'phone' => $props['phone'],
+                'company' => $props['company']
+            ]);
+
+        }
+
     }
 }
