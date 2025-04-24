@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -21,7 +23,6 @@ class CompanyController extends Controller
 
         $hubspotToken = env('HUBSPOT_TOKEN');
 
-        // Fetch all company properties
         $propertiesResponse = Http::withToken($hubspotToken)->get('https://api.hubapi.com/crm/v3/properties/companies');
 
         if (!$propertiesResponse->successful()) {
@@ -38,6 +39,7 @@ class CompanyController extends Controller
 
         $file = fopen($request->file('company_csv_file'), 'r');
         $header = fgetcsv($file);
+
         $companies = [];
 
         while ($row = fgetcsv($file)) {
@@ -45,6 +47,7 @@ class CompanyController extends Controller
             $properties = [];
 
             foreach ($data as $key => $value) {
+
                 if (in_array($key, $validProperties) && !empty($value)) {
                     if ($key === 'industry') {
                         $upperIndustry = strtoupper($value);
@@ -63,6 +66,7 @@ class CompanyController extends Controller
 
             if (count($companies) === 100) {
                 $this->sendBatchToHubspot($companies);
+                $this->saveDataInLocalDB($companies);
                 $companies = [];
             }
         }
@@ -71,6 +75,8 @@ class CompanyController extends Controller
 
         if (!empty($companies)) {
             $this->sendBatchToHubspot($companies);
+            $this->saveDataInLocalDB($companies);
+
         }
 
         return back()->with('success', 'CSV uploaded and companies added to HubSpot.');
@@ -87,6 +93,19 @@ class CompanyController extends Controller
         if (!$response->successful()) {
             Log::error('HubSpot batch upload failed', [
                 'response' => $response->body(),
+            ]);
+        }
+    }
+
+    private function saveDataInLocalDB(array $companies){
+        foreach ($companies as $companiestData) {
+            $props = $companiestData['properties'];
+
+            Company::create([
+                'name' => $props['name'],
+                'domain' => $props['domain'],
+                'phone' => $props['phone'],
+                'industry' => $props['industry'] ?? null
             ]);
         }
     }

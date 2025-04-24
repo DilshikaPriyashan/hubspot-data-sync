@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('companies', function (Blueprint $table) {
             $table->id();
+            $table->string('name')->nullable();
+            $table->string('domain')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('industry')->nullable();
+            $table->string('hubspot_id')->nullable();
             $table->timestamps();
         });
     }
