@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -31,10 +30,7 @@ class CompanyController extends Controller
 
         $propertiesData = $propertiesResponse->json()['results'];
         $validProperties = collect($propertiesData)->pluck('name')->toArray();
-
-
         $industryOptions = collect($propertiesData)->firstWhere('name', 'industry')['options'] ?? [];
-
         $validIndustryValues = collect($industryOptions)->pluck('value')->map(fn($v) => strtoupper($v))->toArray();
 
         $file = fopen($request->file('company_csv_file'), 'r');
@@ -47,7 +43,6 @@ class CompanyController extends Controller
             $properties = [];
 
             foreach ($data as $key => $value) {
-
                 if (in_array($key, $validProperties) && !empty($value)) {
                     if ($key === 'industry') {
                         $upperIndustry = strtoupper($value);
@@ -65,8 +60,8 @@ class CompanyController extends Controller
             }
 
             if (count($companies) === 100) {
-                $this->sendBatchToHubspot($companies);
-                $this->saveDataInLocalDB($companies);
+                $hubspotResults = $this->sendBatchToHubspot($companies);
+                $this->saveDataInLocalDB($companies, $hubspotResults);
                 $companies = [];
             }
         }
@@ -74,9 +69,8 @@ class CompanyController extends Controller
         fclose($file);
 
         if (!empty($companies)) {
-            $this->sendBatchToHubspot($companies);
-            $this->saveDataInLocalDB($companies);
-
+            $hubspotResults = $this->sendBatchToHubspot($companies);
+            $this->saveDataInLocalDB($companies, $hubspotResults);
         }
 
         return back()->with('success', 'CSV uploaded and companies added to HubSpot.');
@@ -94,18 +88,31 @@ class CompanyController extends Controller
             Log::error('HubSpot batch upload failed', [
                 'response' => $response->body(),
             ]);
+            return [];
         }
+
+        // dd($response->json()['results']);
+        return $response->json()['results'] ?? [];
     }
 
-    private function saveDataInLocalDB(array $companies){
-        foreach ($companies as $companiestData) {
-            $props = $companiestData['properties'];
+    private function saveDataInLocalDB(array $companies, array $hubspotResults)
+    {
+        foreach ($companies as $companyData) {
+            $props = $companyData['properties'];
+            $domain = $props['domain'] ?? null;
+
+            $matchingResult = collect($hubspotResults)->first(function ($result) use ($domain) {
+                return $result['properties']['domain'] === $domain;
+            });
+
+            $hubspotId = $matchingResult['id'] ?? null;
 
             Company::create([
-                'name' => $props['name'],
-                'domain' => $props['domain'],
-                'phone' => $props['phone'],
-                'industry' => $props['industry'] ?? null
+                'name' => $props['name'] ?? null,
+                'domain' => $props['domain'] ?? null,
+                'phone' => $props['phone'] ?? null,
+                'industry' => $props['industry'] ?? null,
+                'hubspot_id' => $hubspotId,
             ]);
         }
     }

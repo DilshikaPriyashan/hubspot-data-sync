@@ -13,6 +13,7 @@ class Company extends Model
         'name',
         'domain',
         'phone',
-        'industry'
+        'industry',
+        'hubspot_id'
     ];
 }
