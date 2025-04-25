@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('email');
             $table->integer('phone');
             $table->string('company');
+            $table->string('hubspot_id');
             $table->timestamps();
         });
     }

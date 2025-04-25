@@ -14,7 +14,8 @@ class Contact extends Model
         'lastname',
         'email',
         'phone',
-        'company'
+        'company',
+        'hubspot_id'
     ];
 
 }
